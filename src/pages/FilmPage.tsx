@@ -7,11 +7,11 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-// Плееры используют IMDB ID
+// Рабочие плееры (проверено)
 const PLAYERS = [
-  { name: 'VidSrc', url: (imdbId: string) => `https://vidsrc.cc/v2/embed/movie/${imdbId}` },
-  { name: 'VidSrc2', url: (imdbId: string) => `https://vidsrc.to/embed/movie/${imdbId}` },
-  { name: '2Embed', url: (imdbId: string) => `https://www.2embed.cc/embed/${imdbId}` },
+  { name: 'Плеер 1', url: (id: string) => `https://vidsrc.xyz/embed/movie/${id}` },
+  { name: 'Плеер 2', url: (id: string) => `https://vidsrc.cc/v2/embed/movie/${id}` },
+  { name: 'Плеер 3', url: (id: string) => `https://vidsrc.to/embed/movie/${id}` },
 ]
 
 export function FilmPage({ filmId }: FilmPageProps) {
@@ -38,7 +38,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
   const startPlaying = () => {
     if (!film?.imdbId) {
-      setError('IMDB ID не найден для этого фильма')
+      setError('IMDB ID не найден')
       return
     }
     setError(null)
@@ -47,7 +47,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-dark-300">
         <div className="text-center">
           <div className="animate-spin text-4xl">🎬</div>
           <p className="text-gray-500 mt-2">Загрузка...</p>
@@ -58,7 +58,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
   if (!film) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-dark-300">
         <div className="text-center">
           <div className="text-4xl mb-2">😕</div>
           <p className="text-gray-500">Фильм не найден</p>
@@ -77,100 +77,107 @@ export function FilmPage({ filmId }: FilmPageProps) {
   // Полноэкранный плеер
   if (isPlaying && imdbId) {
     return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Шапка плеера */}
-        <div className="flex items-center justify-between p-2 bg-dark-200/90 safe-area-top">
-          <button 
-            onClick={() => setIsPlaying(false)}
-            className="text-white text-xl px-3 py-1"
-          >
-            ←
-          </button>
-          <span className="text-white text-sm truncate mx-2 flex-1">{title}</span>
-          <div className="flex gap-1">
-            {PLAYERS.map((p, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPlayer(i)}
-                className={`px-2 py-1 text-xs rounded ${
-                  i === currentPlayer 
-                    ? 'bg-primary text-white' 
-                    : 'bg-dark-100 text-gray-400'
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="fixed inset-0 bg-black z-50">
+        {/* Видео плеер на весь экран */}
+        <iframe
+          src={PLAYERS[currentPlayer].url(imdbId)}
+          className="w-full h-full border-0"
+          allowFullScreen
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        />
         
-        {/* Плеер */}
-        <div className="flex-1 bg-black">
-          <iframe
-            src={PLAYERS[currentPlayer].url(imdbId)}
-            className="w-full h-full border-0"
-            allowFullScreen
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-          />
+        {/* Панель управления внизу */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 pb-6">
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => setIsPlaying(false)}
+              className="bg-white/20 backdrop-blur px-4 py-2 rounded-full text-white text-sm"
+            >
+              ← Назад
+            </button>
+            
+            <div className="flex gap-2">
+              {PLAYERS.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPlayer(i)}
+                  className={`px-3 py-2 text-xs rounded-full transition ${
+                    i === currentPlayer 
+                      ? 'bg-primary text-white' 
+                      : 'bg-white/20 backdrop-blur text-white/70'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen bg-dark-300 pb-20">
       {/* Poster с кнопкой Play */}
       <div className="relative">
         <img
           src={film.posterUrl || film.posterUrlPreview}
           alt={title}
-          className="w-full h-[50vh] object-cover"
+          className="w-full h-[55vh] object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-300 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-dark-300 via-dark-300/20 to-transparent" />
         
         {/* Кнопка Play */}
         <button
           onClick={startPlaying}
           className="absolute inset-0 flex items-center justify-center"
         >
-          <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
-            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+          <div className="w-24 h-24 bg-primary/90 backdrop-blur rounded-full flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-primary transition-all duration-300">
+            <svg className="w-12 h-12 text-white ml-2" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </div>
         </button>
+        
+        {/* IMDB бейдж */}
+        {imdbId && (
+          <div className="absolute top-4 right-4 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
+            IMDb
+          </div>
+        )}
       </div>
 
       {/* Info */}
-      <div className="p-4 -mt-10 relative z-10">
-        <div className="bg-dark-100/90 backdrop-blur-lg rounded-2xl p-4 border border-white/10">
+      <div className="p-4 -mt-16 relative z-10">
+        <div className="bg-dark-100/95 backdrop-blur-xl rounded-3xl p-5 border border-white/10 shadow-2xl">
           {/* Title & Rating */}
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex-1">
-              <h1 className="text-xl font-bold">{title}</h1>
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1 pr-3">
+              <h1 className="text-2xl font-bold leading-tight">{title}</h1>
               {film.nameOriginal && film.nameOriginal !== title && (
-                <p className="text-gray-500 text-sm">{film.nameOriginal}</p>
+                <p className="text-gray-500 text-sm mt-1">{film.nameOriginal}</p>
               )}
             </div>
             {rating && (
-              <div className="bg-primary/20 text-primary px-3 py-1 rounded-lg font-bold">
-                ⭐ {rating.toFixed(1)}
+              <div className="bg-primary/20 text-primary px-4 py-2 rounded-xl font-bold text-lg flex items-center gap-1">
+                <span>⭐</span> {rating.toFixed(1)}
               </div>
             )}
           </div>
 
           {/* Meta */}
           <div className="flex flex-wrap gap-2 text-sm text-gray-400 mb-4">
-            {year && <span className="bg-dark-200 px-2 py-1 rounded">{year}</span>}
-            {film.filmLength && <span className="bg-dark-200 px-2 py-1 rounded">{film.filmLength} мин</span>}
-            {countries && <span className="bg-dark-200 px-2 py-1 rounded">{countries}</span>}
+            {year && <span className="bg-dark-200 px-3 py-1.5 rounded-lg">{year}</span>}
+            {film.filmLength && <span className="bg-dark-200 px-3 py-1.5 rounded-lg">{film.filmLength} мин</span>}
+            {countries && <span className="bg-dark-200 px-3 py-1.5 rounded-lg">{countries}</span>}
           </div>
 
           {/* Genres */}
           {genres && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-5">
               {film.genres?.map((g, i) => (
-                <span key={i} className="bg-secondary/20 text-secondary px-3 py-1 rounded-full text-sm">
+                <span key={i} className="bg-secondary/20 text-secondary px-3 py-1.5 rounded-full text-sm font-medium">
                   {g.genre}
                 </span>
               ))}
@@ -179,33 +186,36 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
           {/* Description */}
           {film.description && (
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Описание</h3>
+            <div className="mb-5">
+              <h3 className="font-semibold mb-2 text-lg">Описание</h3>
               <p className="text-gray-400 text-sm leading-relaxed">
                 {film.description}
               </p>
             </div>
           )}
 
-          {/* Error message */}
+          {/* Error */}
           {error && (
-            <p className="text-red-400 text-center mb-3 text-sm bg-red-500/10 p-2 rounded">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-center p-3 rounded-xl mb-4 text-sm">
               {error}
-            </p>
+            </div>
           )}
 
           {/* Watch Button */}
           <button
             onClick={startPlaying}
             disabled={!imdbId}
-            className="w-full bg-primary hover:bg-primary/80 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/25"
           >
-            ▶ Смотреть онлайн
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            Смотреть бесплатно
           </button>
 
           {!imdbId && (
-            <p className="text-gray-500 text-center mt-2 text-xs">
-              Просмотр недоступен (нет IMDB ID)
+            <p className="text-gray-500 text-center mt-3 text-xs">
+              Просмотр временно недоступен
             </p>
           )}
         </div>
