@@ -73,3 +73,4 @@ export const api = {
     return kinoFetch(`/v2.2/films/${filmId}/similars`)
   },
 }
+

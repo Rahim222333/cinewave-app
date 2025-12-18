@@ -91,3 +91,4 @@ export function SearchPage({ onFilmClick }: SearchPageProps) {
     </div>
   )
 }
+

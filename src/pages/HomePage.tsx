@@ -99,3 +99,4 @@ export function HomePage({ user, onSearch, onFilmClick }: HomePageProps) {
     </div>
   )
 }
+

@@ -7,27 +7,16 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-// Универсальные плееры (пробуем все источники)
-const getPlayerUrls = (filmId: number, imdbId?: string) => {
-  const players = []
+// Рабочие плееры (проверено декабрь 2024)
+const getPlayerUrls = (imdbId?: string) => {
+  if (!imdbId) return []
   
-  // Если есть IMDB ID - добавляем международные плееры
-  if (imdbId) {
-    players.push(
-      { name: 'VidSrc', url: `https://vidsrc.xyz/embed/movie/${imdbId}` },
-      { name: 'VidSrc Pro', url: `https://vidsrc.cc/v2/embed/movie/${imdbId}` },
-      { name: '2Embed', url: `https://www.2embed.cc/embed/${imdbId}` }
-    )
-  }
-  
-  // Добавляем российские плееры с Kinopoisk ID
-  players.push(
-    { name: 'Плеер 1', url: `https://kinobox.tv/player/kp/${filmId}` },
-    { name: 'Плеер 2', url: `https://voidboost.net/embed/${filmId}` },
-    { name: 'Плеер 3', url: `https://hdvb.pw/kp/${filmId}` }
-  )
-  
-  return players
+  return [
+    { name: 'VidSrc', url: `https://vidsrc.xyz/embed/movie/${imdbId}` },
+    { name: 'VidSrc 2', url: `https://vidsrc.cc/v2/embed/movie/${imdbId}` },
+    { name: 'VidSrc 3', url: `https://vidsrc.to/embed/movie/${imdbId}` },
+    { name: '2Embed', url: `https://www.2embed.cc/embed/${imdbId}` }
+  ]
 }
 
 export function FilmPage({ filmId }: FilmPageProps) {
@@ -45,7 +34,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
     try {
       const data = await api.getFilm(filmId)
       setFilm(data)
-      setPlayers(getPlayerUrls(filmId, data.imdbId || undefined))
+      setPlayers(getPlayerUrls(data.imdbId || undefined))
     } catch (err) {
       console.error('Failed to load film:', err)
     } finally {
@@ -142,16 +131,18 @@ export function FilmPage({ filmId }: FilmPageProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-dark-300 via-dark-300/20 to-transparent" />
         
         {/* Кнопка Play */}
-        <button
-          onClick={handleWatch}
-          className="absolute inset-0 flex items-center justify-center"
-        >
-          <div className="w-24 h-24 bg-primary/90 backdrop-blur rounded-full flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-primary transition-all duration-300">
-            <svg className="w-12 h-12 text-white ml-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </div>
-        </button>
+        {players.length > 0 && (
+          <button
+            onClick={handleWatch}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <div className="w-24 h-24 bg-primary/90 backdrop-blur rounded-full flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-primary transition-all duration-300">
+              <svg className="w-12 h-12 text-white ml-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Info */}
@@ -201,21 +192,34 @@ export function FilmPage({ filmId }: FilmPageProps) {
           )}
 
           {/* Watch Button */}
-          <button
-            onClick={handleWatch}
-            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-primary/25"
-          >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-            Смотреть онлайн
-          </button>
-
-          <p className="text-gray-500 text-center mt-3 text-xs">
-            Доступно {players.length} источников
-          </p>
+          {players.length > 0 ? (
+            <>
+              <button
+                onClick={handleWatch}
+                className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-primary/25"
+              >
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                Смотреть онлайн
+              </button>
+              <p className="text-gray-500 text-center mt-3 text-xs">
+                Доступно {players.length} источников
+              </p>
+            </>
+          ) : (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 text-center">
+              <p className="text-yellow-400 font-medium mb-2">
+                😔 Онлайн-просмотр недоступен
+              </p>
+              <p className="text-gray-400 text-sm">
+                Этот фильм пока не добавлен в нашу базу плееров
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
+

@@ -71,3 +71,4 @@ export function FilmCard({ film, onClick, compact }: FilmCardProps) {
     </div>
   )
 }
+

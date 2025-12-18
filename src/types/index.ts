@@ -36,3 +36,4 @@ export interface CollectionResponse {
   totalPages: number
   items: Film[]
 }
+
