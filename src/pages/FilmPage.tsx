@@ -7,18 +7,19 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-// Плееры для просмотра (по Kinopoisk ID)
-const PLAYERS = [
-  { id: 'videocdn', name: 'Плеер 1', url: (kpId: number) => `https://videocdn.tv/api/short?api_token=3i40G5TSEu3FCm9bjYgOXt3eAMgXYc6R&kinopoisk_id=${kpId}` },
-  { id: 'collaps', name: 'Плеер 2', url: (kpId: number) => `https://api.collaps.cc/embed?kp=${kpId}` },
-  { id: 'voidboost', name: 'Плеер 3', url: (kpId: number) => `https://voidboost.tv/embed/${kpId}` },
-]
+interface PlayerSource {
+  source: string
+  iframeUrl: string
+  quality?: string
+}
 
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [players, setPlayers] = useState<PlayerSource[]>([])
   const [currentPlayer, setCurrentPlayer] = useState(0)
+  const [loadingPlayers, setLoadingPlayers] = useState(false)
 
   useEffect(() => {
     loadFilm()
@@ -32,6 +33,36 @@ export function FilmPage({ filmId }: FilmPageProps) {
       console.error('Failed to load film:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Загрузить плееры через Kinobox API
+  const loadPlayers = async () => {
+    setLoadingPlayers(true)
+    try {
+      const response = await fetch(
+        `https://kinobox.tv/api/players?kinopoisk=${filmId}`
+      )
+      const data = await response.json()
+      
+      if (Array.isArray(data) && data.length > 0) {
+        const availablePlayers = data
+          .filter((p: PlayerSource) => p.iframeUrl)
+          .map((p: PlayerSource) => ({
+            source: p.source,
+            iframeUrl: p.iframeUrl,
+            quality: p.quality
+          }))
+        
+        setPlayers(availablePlayers)
+        if (availablePlayers.length > 0) {
+          setIsPlaying(true)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load players:', error)
+    } finally {
+      setLoadingPlayers(false)
     }
   }
 
@@ -64,42 +95,42 @@ export function FilmPage({ filmId }: FilmPageProps) {
   const countries = film.countries?.map(c => c.country).join(', ')
 
   // Полноэкранный плеер
-  if (isPlaying) {
+  if (isPlaying && players.length > 0) {
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
         {/* Шапка плеера */}
-        <div className="flex items-center justify-between p-3 bg-dark-200/80">
+        <div className="flex items-center justify-between p-2 bg-dark-200/90">
           <button 
             onClick={() => setIsPlaying(false)}
-            className="text-white text-2xl"
+            className="text-white text-xl px-2"
           >
-            ← 
+            ✕
           </button>
           <span className="text-white text-sm truncate mx-2 flex-1">{title}</span>
-          <div className="flex gap-1">
-            {PLAYERS.map((p, i) => (
+          <div className="flex gap-1 overflow-x-auto">
+            {players.map((p, i) => (
               <button
-                key={p.id}
+                key={i}
                 onClick={() => setCurrentPlayer(i)}
-                className={`px-2 py-1 text-xs rounded ${
+                className={`px-2 py-1 text-xs rounded whitespace-nowrap ${
                   i === currentPlayer 
                     ? 'bg-primary text-white' 
                     : 'bg-dark-100 text-gray-400'
                 }`}
               >
-                {p.name}
+                {p.source}
               </button>
             ))}
           </div>
         </div>
         
         {/* Плеер */}
-        <div className="flex-1">
+        <div className="flex-1 bg-black">
           <iframe
-            src={PLAYERS[currentPlayer].url(filmId)}
+            src={players[currentPlayer].iframeUrl}
             className="w-full h-full border-0"
             allowFullScreen
-            allow="autoplay; fullscreen; encrypted-media"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           />
         </div>
       </div>
@@ -119,13 +150,18 @@ export function FilmPage({ filmId }: FilmPageProps) {
         
         {/* Кнопка Play */}
         <button
-          onClick={() => setIsPlaying(true)}
+          onClick={loadPlayers}
+          disabled={loadingPlayers}
           className="absolute inset-0 flex items-center justify-center"
         >
           <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
-            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
+            {loadingPlayers ? (
+              <div className="animate-spin text-2xl">⏳</div>
+            ) : (
+              <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            )}
           </div>
         </button>
       </div>
@@ -178,11 +214,23 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
           {/* Watch Button */}
           <button
-            onClick={() => setIsPlaying(true)}
-            className="w-full bg-primary hover:bg-primary/80 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
+            onClick={loadPlayers}
+            disabled={loadingPlayers}
+            className="w-full bg-primary hover:bg-primary/80 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            ▶ Смотреть онлайн
+            {loadingPlayers ? (
+              <>⏳ Загрузка плеера...</>
+            ) : (
+              <>▶ Смотреть онлайн</>
+            )}
           </button>
+
+          {/* No players message */}
+          {players.length === 0 && !loadingPlayers && isPlaying && (
+            <p className="text-red-400 text-center mt-2 text-sm">
+              Плееры не найдены для этого фильма
+            </p>
+          )}
         </div>
       </div>
     </div>
