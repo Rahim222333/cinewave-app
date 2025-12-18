@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { FilmDetails } from '../types'
 import { api } from '../services/api'
 
@@ -7,41 +7,22 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
+// Плееры для фильмов с IMDB ID
+const IMDB_PLAYERS = [
+  { name: 'VidSrc', url: (id: string) => `https://vidsrc.xyz/embed/movie/${id}` },
+  { name: 'VidSrc Pro', url: (id: string) => `https://vidsrc.cc/v2/embed/movie/${id}` },
+  { name: '2Embed', url: (id: string) => `https://www.2embed.cc/embed/${id}` },
+]
+
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
-  const playerRef = useRef<HTMLDivElement>(null)
+  const [currentPlayer, setCurrentPlayer] = useState(0)
 
   useEffect(() => {
     loadFilm()
   }, [filmId])
-
-  // Загружаем скрипт плеера когда начинаем воспроизведение
-  useEffect(() => {
-    if (isPlaying && playerRef.current) {
-      // Очищаем предыдущий плеер
-      playerRef.current.innerHTML = ''
-      
-      // Создаем контейнер для плеера
-      const playerDiv = document.createElement('div')
-      playerDiv.id = 'kinoplayertop'
-      playerDiv.setAttribute('data-kinopoisk', String(filmId))
-      playerDiv.setAttribute('data-player', 'alloha,kodik,collaps,hdvb')
-      playerRef.current.appendChild(playerDiv)
-      
-      // Загружаем скрипт плеера
-      const script = document.createElement('script')
-      script.src = '//kinoplayer.top/top.js'
-      script.async = true
-      document.body.appendChild(script)
-      
-      return () => {
-        // Удаляем скрипт при размонтировании
-        document.body.removeChild(script)
-      }
-    }
-  }, [isPlaying, filmId])
 
   const loadFilm = async () => {
     try {
@@ -51,6 +32,15 @@ export function FilmPage({ filmId }: FilmPageProps) {
       console.error('Failed to load film:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleWatch = () => {
+    if (film?.imdbId) {
+      setIsPlaying(true)
+    } else {
+      // Если нет IMDB ID - открываем на Кинопоиск
+      window.open(`https://www.kinopoisk.ru/film/${filmId}/`, '_blank')
     }
   }
 
@@ -81,24 +71,48 @@ export function FilmPage({ filmId }: FilmPageProps) {
   const rating = film.ratingKinopoisk || film.ratingImdb
   const genres = film.genres?.map(g => g.genre).join(', ')
   const countries = film.countries?.map(c => c.country).join(', ')
+  const imdbId = film.imdbId
 
-  // Полноэкранный плеер
-  if (isPlaying) {
+  // Полноэкранный плеер (только для фильмов с IMDB ID)
+  if (isPlaying && imdbId) {
     return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Шапка */}
-        <div className="flex items-center p-3 bg-dark-200/90">
-          <button 
-            onClick={() => setIsPlaying(false)}
-            className="text-white text-xl mr-3"
-          >
-            ←
-          </button>
-          <span className="text-white text-sm truncate">{title}</span>
-        </div>
+      <div className="fixed inset-0 bg-black z-50">
+        {/* Плеер на весь экран */}
+        <iframe
+          key={currentPlayer}
+          src={IMDB_PLAYERS[currentPlayer].url(imdbId)}
+          className="w-full h-full border-0"
+          allowFullScreen
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        />
         
-        {/* Плеер */}
-        <div ref={playerRef} className="flex-1 bg-black" />
+        {/* Панель управления внизу */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-4 pb-6 pointer-events-none">
+          <div className="flex items-center justify-between pointer-events-auto">
+            <button 
+              onClick={() => setIsPlaying(false)}
+              className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm font-medium hover:bg-white/20 transition"
+            >
+              ← Назад
+            </button>
+            
+            <div className="flex gap-2">
+              {IMDB_PLAYERS.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPlayer(i)}
+                  className={`px-3 py-2 text-xs rounded-full font-medium transition ${
+                    i === currentPlayer 
+                      ? 'bg-primary text-white shadow-lg' 
+                      : 'bg-white/10 backdrop-blur-md text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -116,7 +130,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
         
         {/* Кнопка Play */}
         <button
-          onClick={() => setIsPlaying(true)}
+          onClick={handleWatch}
           className="absolute inset-0 flex items-center justify-center"
         >
           <div className="w-24 h-24 bg-primary/90 backdrop-blur rounded-full flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-primary transition-all duration-300">
@@ -125,6 +139,19 @@ export function FilmPage({ filmId }: FilmPageProps) {
             </svg>
           </div>
         </button>
+        
+        {/* Бейдж доступности */}
+        <div className="absolute top-4 right-4">
+          {imdbId ? (
+            <span className="bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+              Доступен онлайн
+            </span>
+          ) : (
+            <span className="bg-yellow-500 text-black text-xs font-bold px-3 py-1.5 rounded-full">
+              Кинопоиск
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Info */}
@@ -175,14 +202,20 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
           {/* Watch Button */}
           <button
-            onClick={() => setIsPlaying(true)}
+            onClick={handleWatch}
             className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-primary/25"
           >
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
-            Смотреть бесплатно
+            {imdbId ? 'Смотреть онлайн' : 'Смотреть на Кинопоиск'}
           </button>
+
+          {!imdbId && (
+            <p className="text-gray-500 text-center mt-3 text-xs">
+              Фильм будет открыт в браузере на Кинопоиск
+            </p>
+          )}
         </div>
       </div>
     </div>
