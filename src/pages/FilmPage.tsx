@@ -7,11 +7,11 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-// Плееры для фильмов с IMDB ID
+// Плееры для фильмов с IMDB ID (с автозапуском)
 const IMDB_PLAYERS = [
-  { name: 'VidSrc', url: (id: string) => `https://vidsrc.xyz/embed/movie/${id}` },
-  { name: 'VidSrc Pro', url: (id: string) => `https://vidsrc.cc/v2/embed/movie/${id}` },
-  { name: '2Embed', url: (id: string) => `https://www.2embed.cc/embed/${id}` },
+  { name: 'VidSrc', url: (id: string) => `https://vidsrc.xyz/embed/movie/${id}?autoplay=1` },
+  { name: 'VidSrc Pro', url: (id: string) => `https://vidsrc.cc/v2/embed/movie/${id}?autoplay=1` },
+  { name: '2Embed', url: (id: string) => `https://www.2embed.cc/embed/${id}?autoplay=1` },
 ]
 
 export function FilmPage({ filmId }: FilmPageProps) {
@@ -84,6 +84,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
           className="w-full h-full border-0"
           allowFullScreen
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation"
         />
         
         {/* Панель управления внизу */}
