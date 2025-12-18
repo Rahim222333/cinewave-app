@@ -7,19 +7,19 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-interface PlayerSource {
-  source: string
-  iframeUrl: string
-  quality?: string
-}
+// Плееры используют IMDB ID
+const PLAYERS = [
+  { name: 'VidSrc', url: (imdbId: string) => `https://vidsrc.cc/v2/embed/movie/${imdbId}` },
+  { name: 'VidSrc2', url: (imdbId: string) => `https://vidsrc.to/embed/movie/${imdbId}` },
+  { name: '2Embed', url: (imdbId: string) => `https://www.2embed.cc/embed/${imdbId}` },
+]
 
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [players, setPlayers] = useState<PlayerSource[]>([])
   const [currentPlayer, setCurrentPlayer] = useState(0)
-  const [loadingPlayers, setLoadingPlayers] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadFilm()
@@ -29,41 +29,20 @@ export function FilmPage({ filmId }: FilmPageProps) {
     try {
       const data = await api.getFilm(filmId)
       setFilm(data)
-    } catch (error) {
-      console.error('Failed to load film:', error)
+    } catch (err) {
+      console.error('Failed to load film:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // Загрузить плееры через Kinobox API
-  const loadPlayers = async () => {
-    setLoadingPlayers(true)
-    try {
-      const response = await fetch(
-        `https://kinobox.tv/api/players?kinopoisk=${filmId}`
-      )
-      const data = await response.json()
-      
-      if (Array.isArray(data) && data.length > 0) {
-        const availablePlayers = data
-          .filter((p: PlayerSource) => p.iframeUrl)
-          .map((p: PlayerSource) => ({
-            source: p.source,
-            iframeUrl: p.iframeUrl,
-            quality: p.quality
-          }))
-        
-        setPlayers(availablePlayers)
-        if (availablePlayers.length > 0) {
-          setIsPlaying(true)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load players:', error)
-    } finally {
-      setLoadingPlayers(false)
+  const startPlaying = () => {
+    if (!film?.imdbId) {
+      setError('IMDB ID не найден для этого фильма')
+      return
     }
+    setError(null)
+    setIsPlaying(true)
   }
 
   if (loading) {
@@ -93,32 +72,33 @@ export function FilmPage({ filmId }: FilmPageProps) {
   const rating = film.ratingKinopoisk || film.ratingImdb
   const genres = film.genres?.map(g => g.genre).join(', ')
   const countries = film.countries?.map(c => c.country).join(', ')
+  const imdbId = film.imdbId
 
   // Полноэкранный плеер
-  if (isPlaying && players.length > 0) {
+  if (isPlaying && imdbId) {
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
         {/* Шапка плеера */}
-        <div className="flex items-center justify-between p-2 bg-dark-200/90">
+        <div className="flex items-center justify-between p-2 bg-dark-200/90 safe-area-top">
           <button 
             onClick={() => setIsPlaying(false)}
-            className="text-white text-xl px-2"
+            className="text-white text-xl px-3 py-1"
           >
-            ✕
+            ←
           </button>
           <span className="text-white text-sm truncate mx-2 flex-1">{title}</span>
-          <div className="flex gap-1 overflow-x-auto">
-            {players.map((p, i) => (
+          <div className="flex gap-1">
+            {PLAYERS.map((p, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentPlayer(i)}
-                className={`px-2 py-1 text-xs rounded whitespace-nowrap ${
+                className={`px-2 py-1 text-xs rounded ${
                   i === currentPlayer 
                     ? 'bg-primary text-white' 
                     : 'bg-dark-100 text-gray-400'
                 }`}
               >
-                {p.source}
+                {p.name}
               </button>
             ))}
           </div>
@@ -127,7 +107,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
         {/* Плеер */}
         <div className="flex-1 bg-black">
           <iframe
-            src={players[currentPlayer].iframeUrl}
+            src={PLAYERS[currentPlayer].url(imdbId)}
             className="w-full h-full border-0"
             allowFullScreen
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
@@ -150,18 +130,13 @@ export function FilmPage({ filmId }: FilmPageProps) {
         
         {/* Кнопка Play */}
         <button
-          onClick={loadPlayers}
-          disabled={loadingPlayers}
+          onClick={startPlaying}
           className="absolute inset-0 flex items-center justify-center"
         >
           <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
-            {loadingPlayers ? (
-              <div className="animate-spin text-2xl">⏳</div>
-            ) : (
-              <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            )}
+            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
           </div>
         </button>
       </div>
@@ -212,23 +187,25 @@ export function FilmPage({ filmId }: FilmPageProps) {
             </div>
           )}
 
+          {/* Error message */}
+          {error && (
+            <p className="text-red-400 text-center mb-3 text-sm bg-red-500/10 p-2 rounded">
+              {error}
+            </p>
+          )}
+
           {/* Watch Button */}
           <button
-            onClick={loadPlayers}
-            disabled={loadingPlayers}
-            className="w-full bg-primary hover:bg-primary/80 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            onClick={startPlaying}
+            disabled={!imdbId}
+            className="w-full bg-primary hover:bg-primary/80 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loadingPlayers ? (
-              <>⏳ Загрузка плеера...</>
-            ) : (
-              <>▶ Смотреть онлайн</>
-            )}
+            ▶ Смотреть онлайн
           </button>
 
-          {/* No players message */}
-          {players.length === 0 && !loadingPlayers && isPlaying && (
-            <p className="text-red-400 text-center mt-2 text-sm">
-              Плееры не найдены для этого фильма
+          {!imdbId && (
+            <p className="text-gray-500 text-center mt-2 text-xs">
+              Просмотр недоступен (нет IMDB ID)
             </p>
           )}
         </div>

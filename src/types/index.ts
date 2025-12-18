@@ -1,6 +1,7 @@
 export interface Film {
   kinopoiskId: number
   filmId?: number
+  imdbId?: string
   nameRu?: string
   nameEn?: string
   nameOriginal?: string
