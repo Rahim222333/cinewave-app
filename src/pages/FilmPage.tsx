@@ -27,9 +27,10 @@ export function FilmPage({ filmId }: FilmPageProps) {
     }
   }
 
-  // Генерация URL для плеера (используем kinobox или аналог)
+  // Генерация URL для плеера
   const getPlayerUrl = () => {
-    return `https://kinobox.tv/films/${filmId}`
+    // Используем Alloha player с Kinopoisk ID
+    return `https://api.alloha.tv/?kp=${filmId}`
   }
 
   if (loading) {
