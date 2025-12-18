@@ -7,9 +7,18 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
+// Плееры для просмотра (по Kinopoisk ID)
+const PLAYERS = [
+  { id: 'videocdn', name: 'Плеер 1', url: (kpId: number) => `https://videocdn.tv/api/short?api_token=3i40G5TSEu3FCm9bjYgOXt3eAMgXYc6R&kinopoisk_id=${kpId}` },
+  { id: 'collaps', name: 'Плеер 2', url: (kpId: number) => `https://api.collaps.cc/embed?kp=${kpId}` },
+  { id: 'voidboost', name: 'Плеер 3', url: (kpId: number) => `https://voidboost.tv/embed/${kpId}` },
+]
+
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentPlayer, setCurrentPlayer] = useState(0)
 
   useEffect(() => {
     loadFilm()
@@ -24,11 +33,6 @@ export function FilmPage({ filmId }: FilmPageProps) {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Открыть фильм для просмотра
-  const watchFilm = () => {
-    window.open(`https://www.kinopoisk.ru/film/${filmId}/`, '_blank')
   }
 
   if (loading) {
@@ -59,9 +63,52 @@ export function FilmPage({ filmId }: FilmPageProps) {
   const genres = film.genres?.map(g => g.genre).join(', ')
   const countries = film.countries?.map(c => c.country).join(', ')
 
+  // Полноэкранный плеер
+  if (isPlaying) {
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        {/* Шапка плеера */}
+        <div className="flex items-center justify-between p-3 bg-dark-200/80">
+          <button 
+            onClick={() => setIsPlaying(false)}
+            className="text-white text-2xl"
+          >
+            ← 
+          </button>
+          <span className="text-white text-sm truncate mx-2 flex-1">{title}</span>
+          <div className="flex gap-1">
+            {PLAYERS.map((p, i) => (
+              <button
+                key={p.id}
+                onClick={() => setCurrentPlayer(i)}
+                className={`px-2 py-1 text-xs rounded ${
+                  i === currentPlayer 
+                    ? 'bg-primary text-white' 
+                    : 'bg-dark-100 text-gray-400'
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Плеер */}
+        <div className="flex-1">
+          <iframe
+            src={PLAYERS[currentPlayer].url(filmId)}
+            className="w-full h-full border-0"
+            allowFullScreen
+            allow="autoplay; fullscreen; encrypted-media"
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen pb-20">
-      {/* Poster */}
+      {/* Poster с кнопкой Play */}
       <div className="relative">
         <img
           src={film.posterUrl || film.posterUrlPreview}
@@ -69,6 +116,18 @@ export function FilmPage({ filmId }: FilmPageProps) {
           className="w-full h-[50vh] object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-dark-300 via-transparent to-transparent" />
+        
+        {/* Кнопка Play */}
+        <button
+          onClick={() => setIsPlaying(true)}
+          className="absolute inset-0 flex items-center justify-center"
+        >
+          <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
+            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+        </button>
       </div>
 
       {/* Info */}
@@ -92,7 +151,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
           {/* Meta */}
           <div className="flex flex-wrap gap-2 text-sm text-gray-400 mb-4">
             {year && <span className="bg-dark-200 px-2 py-1 rounded">{year}</span>}
-            {film.filmLength && <span className="bg-dark-200 px-2 py-1 rounded">{film.filmLength}</span>}
+            {film.filmLength && <span className="bg-dark-200 px-2 py-1 rounded">{film.filmLength} мин</span>}
             {countries && <span className="bg-dark-200 px-2 py-1 rounded">{countries}</span>}
           </div>
 
@@ -119,10 +178,10 @@ export function FilmPage({ filmId }: FilmPageProps) {
 
           {/* Watch Button */}
           <button
-            onClick={watchFilm}
+            onClick={() => setIsPlaying(true)}
             className="w-full bg-primary hover:bg-primary/80 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
           >
-            🎬 Смотреть на Кинопоиск
+            ▶ Смотреть онлайн
           </button>
         </div>
       </div>
