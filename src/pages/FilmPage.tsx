@@ -7,10 +7,17 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
+const PLAYERS = [
+  { name: 'Плеер 1', getUrl: (id: number) => `https://voidboost.tv/embed/${id}` },
+  { name: 'Плеер 2', getUrl: (id: number) => `https://kinobox.tv/films/${id}` },
+  { name: 'Плеер 3', getUrl: (id: number) => `https://collaps.cc/embed/kp/${id}?p=1` },
+]
+
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPlayer, setShowPlayer] = useState(false)
+  const [playerIndex, setPlayerIndex] = useState(0)
 
   useEffect(() => {
     loadFilm()
@@ -27,11 +34,8 @@ export function FilmPage({ filmId }: FilmPageProps) {
     }
   }
 
-  // Генерация URL для плеера
-  const getPlayerUrl = () => {
-    // Используем Alloha player с Kinopoisk ID
-    return `https://api.alloha.tv/?kp=${filmId}`
-  }
+  // Получить URL текущего плеера
+  const getPlayerUrl = () => PLAYERS[playerIndex].getUrl(filmId)
 
   if (loading) {
     return (
@@ -65,19 +69,34 @@ export function FilmPage({ filmId }: FilmPageProps) {
     <div className="min-h-screen pb-20">
       {/* Player or Poster */}
       {showPlayer ? (
-        <div className="relative w-full aspect-video bg-black">
-          <iframe
-            src={getPlayerUrl()}
-            className="w-full h-full"
-            allowFullScreen
-            allow="autoplay; fullscreen"
-          />
-          <button
-            onClick={() => setShowPlayer(false)}
-            className="absolute top-2 right-2 bg-black/50 text-white p-2 rounded-full"
-          >
-            ✕
-          </button>
+        <div className="relative w-full bg-black">
+          {/* Player Selection */}
+          <div className="flex gap-2 p-2 bg-dark-200">
+            {PLAYERS.map((p, i) => (
+              <button
+                key={i}
+                onClick={() => setPlayerIndex(i)}
+                className={`px-3 py-1 rounded text-sm ${i === playerIndex ? 'bg-primary text-white' : 'bg-dark-100 text-gray-400'}`}
+              >
+                {p.name}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowPlayer(false)}
+              className="ml-auto bg-red-500/80 text-white px-3 py-1 rounded text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          {/* Player iframe */}
+          <div className="aspect-video">
+            <iframe
+              src={getPlayerUrl()}
+              className="w-full h-full"
+              allowFullScreen
+              allow="autoplay; fullscreen"
+            />
+          </div>
         </div>
       ) : (
         <div className="relative">
