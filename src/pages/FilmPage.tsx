@@ -8,9 +8,8 @@ interface FilmPageProps {
 }
 
 const PLAYERS = [
-  { name: 'Плеер 1', getUrl: (id: number) => `https://voidboost.tv/embed/${id}` },
-  { name: 'Плеер 2', getUrl: (id: number) => `https://kinobox.tv/films/${id}` },
-  { name: 'Плеер 3', getUrl: (id: number) => `https://collaps.cc/embed/kp/${id}?p=1` },
+  { name: 'KinoMix', getUrl: (id: number) => `https://kinomix.web.app/#!kp=${id}` },
+  { name: 'Резерв', getUrl: (id: number) => `https://kinotochka.co/embed/kp/${id}` },
 ]
 
 export function FilmPage({ filmId }: FilmPageProps) {
