@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FilmDetails } from '../types'
 import { api } from '../services/api'
 
@@ -7,23 +7,41 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-// Рабочие плееры (проверено)
-const PLAYERS = [
-  { name: 'Плеер 1', url: (id: string) => `https://vidsrc.xyz/embed/movie/${id}` },
-  { name: 'Плеер 2', url: (id: string) => `https://vidsrc.cc/v2/embed/movie/${id}` },
-  { name: 'Плеер 3', url: (id: string) => `https://vidsrc.to/embed/movie/${id}` },
-]
-
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [currentPlayer, setCurrentPlayer] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const playerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadFilm()
   }, [filmId])
+
+  // Загружаем скрипт плеера когда начинаем воспроизведение
+  useEffect(() => {
+    if (isPlaying && playerRef.current) {
+      // Очищаем предыдущий плеер
+      playerRef.current.innerHTML = ''
+      
+      // Создаем контейнер для плеера
+      const playerDiv = document.createElement('div')
+      playerDiv.id = 'kinoplayertop'
+      playerDiv.setAttribute('data-kinopoisk', String(filmId))
+      playerDiv.setAttribute('data-player', 'alloha,kodik,collaps,hdvb')
+      playerRef.current.appendChild(playerDiv)
+      
+      // Загружаем скрипт плеера
+      const script = document.createElement('script')
+      script.src = '//kinoplayer.top/top.js'
+      script.async = true
+      document.body.appendChild(script)
+      
+      return () => {
+        // Удаляем скрипт при размонтировании
+        document.body.removeChild(script)
+      }
+    }
+  }, [isPlaying, filmId])
 
   const loadFilm = async () => {
     try {
@@ -34,15 +52,6 @@ export function FilmPage({ filmId }: FilmPageProps) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const startPlaying = () => {
-    if (!film?.imdbId) {
-      setError('IMDB ID не найден')
-      return
-    }
-    setError(null)
-    setIsPlaying(true)
   }
 
   if (loading) {
@@ -72,47 +81,24 @@ export function FilmPage({ filmId }: FilmPageProps) {
   const rating = film.ratingKinopoisk || film.ratingImdb
   const genres = film.genres?.map(g => g.genre).join(', ')
   const countries = film.countries?.map(c => c.country).join(', ')
-  const imdbId = film.imdbId
 
   // Полноэкранный плеер
-  if (isPlaying && imdbId) {
+  if (isPlaying) {
     return (
-      <div className="fixed inset-0 bg-black z-50">
-        {/* Видео плеер на весь экран */}
-        <iframe
-          src={PLAYERS[currentPlayer].url(imdbId)}
-          className="w-full h-full border-0"
-          allowFullScreen
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        />
-        
-        {/* Панель управления внизу */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 pb-6">
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={() => setIsPlaying(false)}
-              className="bg-white/20 backdrop-blur px-4 py-2 rounded-full text-white text-sm"
-            >
-              ← Назад
-            </button>
-            
-            <div className="flex gap-2">
-              {PLAYERS.map((p, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPlayer(i)}
-                  className={`px-3 py-2 text-xs rounded-full transition ${
-                    i === currentPlayer 
-                      ? 'bg-primary text-white' 
-                      : 'bg-white/20 backdrop-blur text-white/70'
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        {/* Шапка */}
+        <div className="flex items-center p-3 bg-dark-200/90">
+          <button 
+            onClick={() => setIsPlaying(false)}
+            className="text-white text-xl mr-3"
+          >
+            ←
+          </button>
+          <span className="text-white text-sm truncate">{title}</span>
         </div>
+        
+        {/* Плеер */}
+        <div ref={playerRef} className="flex-1 bg-black" />
       </div>
     )
   }
@@ -130,7 +116,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
         
         {/* Кнопка Play */}
         <button
-          onClick={startPlaying}
+          onClick={() => setIsPlaying(true)}
           className="absolute inset-0 flex items-center justify-center"
         >
           <div className="w-24 h-24 bg-primary/90 backdrop-blur rounded-full flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-primary transition-all duration-300">
@@ -139,13 +125,6 @@ export function FilmPage({ filmId }: FilmPageProps) {
             </svg>
           </div>
         </button>
-        
-        {/* IMDB бейдж */}
-        {imdbId && (
-          <div className="absolute top-4 right-4 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
-            IMDb
-          </div>
-        )}
       </div>
 
       {/* Info */}
@@ -194,30 +173,16 @@ export function FilmPage({ filmId }: FilmPageProps) {
             </div>
           )}
 
-          {/* Error */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-center p-3 rounded-xl mb-4 text-sm">
-              {error}
-            </div>
-          )}
-
           {/* Watch Button */}
           <button
-            onClick={startPlaying}
-            disabled={!imdbId}
-            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/25"
+            onClick={() => setIsPlaying(true)}
+            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-primary/25"
           >
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
             Смотреть бесплатно
           </button>
-
-          {!imdbId && (
-            <p className="text-gray-500 text-center mt-3 text-xs">
-              Просмотр временно недоступен
-            </p>
-          )}
         </div>
       </div>
     </div>
