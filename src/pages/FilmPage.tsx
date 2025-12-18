@@ -7,18 +7,35 @@ interface FilmPageProps {
   onBack?: () => void
 }
 
-// Плееры для фильмов с IMDB ID (с автозапуском)
-const IMDB_PLAYERS = [
-  { name: 'VidSrc', url: (id: string) => `https://vidsrc.xyz/embed/movie/${id}?autoplay=1` },
-  { name: 'VidSrc Pro', url: (id: string) => `https://vidsrc.cc/v2/embed/movie/${id}?autoplay=1` },
-  { name: '2Embed', url: (id: string) => `https://www.2embed.cc/embed/${id}?autoplay=1` },
-]
+// Универсальные плееры (пробуем все источники)
+const getPlayerUrls = (filmId: number, imdbId?: string) => {
+  const players = []
+  
+  // Если есть IMDB ID - добавляем международные плееры
+  if (imdbId) {
+    players.push(
+      { name: 'VidSrc', url: `https://vidsrc.xyz/embed/movie/${imdbId}` },
+      { name: 'VidSrc Pro', url: `https://vidsrc.cc/v2/embed/movie/${imdbId}` },
+      { name: '2Embed', url: `https://www.2embed.cc/embed/${imdbId}` }
+    )
+  }
+  
+  // Добавляем российские плееры с Kinopoisk ID
+  players.push(
+    { name: 'Плеер 1', url: `https://kinobox.tv/player/kp/${filmId}` },
+    { name: 'Плеер 2', url: `https://voidboost.net/embed/${filmId}` },
+    { name: 'Плеер 3', url: `https://hdvb.pw/kp/${filmId}` }
+  )
+  
+  return players
+}
 
 export function FilmPage({ filmId }: FilmPageProps) {
   const [film, setFilm] = useState<FilmDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentPlayer, setCurrentPlayer] = useState(0)
+  const [players, setPlayers] = useState<{name: string, url: string}[]>([])
 
   useEffect(() => {
     loadFilm()
@@ -28,6 +45,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
     try {
       const data = await api.getFilm(filmId)
       setFilm(data)
+      setPlayers(getPlayerUrls(filmId, data.imdbId || undefined))
     } catch (err) {
       console.error('Failed to load film:', err)
     } finally {
@@ -36,12 +54,7 @@ export function FilmPage({ filmId }: FilmPageProps) {
   }
 
   const handleWatch = () => {
-    if (film?.imdbId) {
-      setIsPlaying(true)
-    } else {
-      // Если нет IMDB ID - открываем на Кинопоиск
-      window.open(`https://www.kinopoisk.ru/film/${filmId}/`, '_blank')
-    }
+    setIsPlaying(true)
   }
 
   if (loading) {
@@ -71,16 +84,15 @@ export function FilmPage({ filmId }: FilmPageProps) {
   const rating = film.ratingKinopoisk || film.ratingImdb
   const genres = film.genres?.map(g => g.genre).join(', ')
   const countries = film.countries?.map(c => c.country).join(', ')
-  const imdbId = film.imdbId
 
-  // Полноэкранный плеер (только для фильмов с IMDB ID)
-  if (isPlaying && imdbId) {
+  // Полноэкранный плеер
+  if (isPlaying && players.length > 0) {
     return (
       <div className="fixed inset-0 bg-black z-50">
         {/* Плеер на весь экран */}
         <iframe
           key={currentPlayer}
-          src={IMDB_PLAYERS[currentPlayer].url(imdbId)}
+          src={players[currentPlayer].url}
           className="w-full h-full border-0"
           allowFullScreen
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
@@ -97,12 +109,12 @@ export function FilmPage({ filmId }: FilmPageProps) {
               ← Назад
             </button>
             
-            <div className="flex gap-2">
-              {IMDB_PLAYERS.map((p, i) => (
+            <div className="flex gap-2 overflow-x-auto max-w-[60%]">
+              {players.map((p, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentPlayer(i)}
-                  className={`px-3 py-2 text-xs rounded-full font-medium transition ${
+                  className={`px-3 py-2 text-xs rounded-full font-medium transition whitespace-nowrap ${
                     i === currentPlayer 
                       ? 'bg-primary text-white shadow-lg' 
                       : 'bg-white/10 backdrop-blur-md text-white/70 hover:bg-white/20'
@@ -140,19 +152,6 @@ export function FilmPage({ filmId }: FilmPageProps) {
             </svg>
           </div>
         </button>
-        
-        {/* Бейдж доступности */}
-        <div className="absolute top-4 right-4">
-          {imdbId ? (
-            <span className="bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-              Доступен онлайн
-            </span>
-          ) : (
-            <span className="bg-yellow-500 text-black text-xs font-bold px-3 py-1.5 rounded-full">
-              Кинопоиск
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Info */}
@@ -209,14 +208,12 @@ export function FilmPage({ filmId }: FilmPageProps) {
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
-            {imdbId ? 'Смотреть онлайн' : 'Смотреть на Кинопоиск'}
+            Смотреть онлайн
           </button>
 
-          {!imdbId && (
-            <p className="text-gray-500 text-center mt-3 text-xs">
-              Фильм будет открыт в браузере на Кинопоиск
-            </p>
-          )}
+          <p className="text-gray-500 text-center mt-3 text-xs">
+            Доступно {players.length} источников
+          </p>
         </div>
       </div>
     </div>
